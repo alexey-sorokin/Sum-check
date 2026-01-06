@@ -1,0 +1,73 @@
+import Mathlib.Algebra.Polynomial.BigOperators
+import Mathlib.Data.Finset.Basic
+import Mathlib.Data.Polynomial.Eval
+
+open scoped BigOperators
+
+namespace Sumcheck
+
+variable {F : Type*} [Field F]
+
+/-- Булевы вектора длины `n`: {0,1}^n -/
+abbrev BoolVec (n : ℕ) := Fin n → Fin 2
+
+/-- Все булевы точки {0,1}^n как конечное множество. -/
+def hypercube (n : ℕ) : Finset (BoolVec n) :=
+  Finset.univ
+
+/-- Поднятие булевого вектора в `F^n` через 0↦0, 1↦1. -/
+def liftBool {n : ℕ} (x : BoolVec n) : Fin n → F :=
+  fun i => (x i : F)
+
+/-- Сумма функции по гиперкубу {0,1}^n. -/
+def hypercubeSum {n : ℕ} (g : (Fin n → F) → F) : F :=
+  ∑ x in hypercube n, g (liftBool x)
+
+/-
+  === Sum-check: модель раунда ===
+
+  В классическом sum-check prover в раунде отправляет одночленную (univariate) полином p(X),
+  verifier проверяет: p(0)+p(1)=текущая_заявленная_сумма, выбирает случайный r,
+  обновляет claim := p(r), и идёт дальше.
+-/
+
+/-- Один раунд: prover прислал полином `p`, verifier выбрал challenge `r`. -/
+abbrev Round (F : Type*) [Field F] := Polynomial F × F
+
+/-- Проверка одного раунда verifier'ом. -/
+def checkRound (claim : F) (rd : Round F) : Prop :=
+  let p : Polynomial F := rd.1
+  let r : F := rd.2
+  p.eval 0 + p.eval 1 = claim
+
+/-- Обновление claim после принятого раунда. -/
+def nextClaim (claim : F) (rd : Round F) : F :=
+  let p : Polynomial F := rd.1
+  let r : F := rd.2
+  p.eval r
+
+/-- Verifier принимает транскрипт, если все раунды проходят последовательно. -/
+def verify (claim0 : F) : List (Round F) → Prop
+  | [] => True
+  | rd :: tr =>
+      checkRound claim0 rd ∧ verify (nextClaim claim0 rd) tr
+
+/-- Финальный claim после проигрывания всех раундов (чисто вычислительно). -/
+def finalClaim (claim0 : F) : List (Round F) → F
+  | [] => claim0
+  | rd :: tr => finalClaim (nextClaim claim0 rd) tr
+
+/-
+  === “Честная” функция первого раунда (пока как функция F → F, не как полином) ===
+
+  В n+1 переменных честный prover должен послать p₁(X) = Σ_{b ∈ {0,1}^n} g(X, b).
+  Мы определяем это как функцию `roundFun g : F → F`.
+  Потом отдельная задача: если g полиномиальная/мультилейнейная, доказать,
+  что `roundFun g` действительно задаётся полиномом нужной степени.
+-/
+
+/-- Функция p₁(a) = Σ_{y ∈ {0,1}^n} g( (a, y) ). -/
+def roundFun {n : ℕ} (g : (Fin (n+1) → F) → F) (a : F) : F :=
+  ∑ y in hypercube n, g (Fin.cases a (fun i => (y i : F)))
+
+end Sumcheck

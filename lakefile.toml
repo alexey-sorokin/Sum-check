@@ -1,0 +1,15 @@
+name = "Sum-check"
+version = "0.1.0"
+defaultTargets = ["sum-check"]
+
+[[lean_lib]]
+name = "SumCheck"
+
+[[lean_exe]]
+name = "sum-check"
+root = "Main"
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+rev = "v4.25.2"

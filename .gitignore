@@ -1,0 +1,11 @@
+.lake/
+lake-packages/
+lakefile.olean
+*.olean
+*.ilean
+*.c
+*.o
+*.so
+*.dylib
+*.dll
+.DS_Store

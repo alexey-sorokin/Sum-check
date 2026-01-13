@@ -77,6 +77,31 @@ def finId_X_Comm (a b c : ℕ) : Fin (a + (b + c)) → Fin (a + (c + b)) :=
 def finComm_X_Id_X_Id (a b c d : ℕ) : Fin (a + b + c + d) → Fin (b + a + c + d) :=
   fun i => Fin.cast (by simp [Nat.add_comm, Nat.add_left_comm]) i
 
+/-- Swap the middle blocks `b` and `c` inside `a + (b + c) + d`. -/
+def finId_X_Comm_XX_Id (a b c d : ℕ) : Fin (a + (b + c) + d) → Fin (a + (c + b) + d) :=
+  fun i => Fin.cast (by simp [Nat.add_comm, Nat.add_left_comm]) i
+
+/-- `Fin n → Fin (n+1)` : include into the first `n` indices. -/
+def finAddOne (n : ℕ) : Fin n → Fin (n + 1) :=
+  fun i => Fin.castLT i (Nat.lt_trans i.2 (Nat.lt_succ_self n))
+
+/-- `Fin n → Fin (1+n)` : shift index by 1 (drop the head). -/
+def finOneAdd (n : ℕ) : Fin n → Fin (1 + n) :=
+  fun i =>
+    ⟨i.1 + 1, by
+      -- i.2 : i.1 < n
+      -- need: i.1 + 1 < 1 + n
+      simp [Nat.add_comm]
+    ⟩
+
+/-- Forward map: `Fin b → Fin (a + (b - a))` when `a ≤ b`. -/
+def finAddSubLE (a b : ℕ) (h : a ≤ b) : Fin b → Fin (a + (b - a)) :=
+  fun i => Fin.cast (by simp [Nat.add_sub_of_le h]) i
+
+/-- Inverse map: `Fin (a + (b - a)) → Fin b` when `a ≤ b`. -/
+def finAddSubLE_Inv (a b : ℕ) (h : a ≤ b) : Fin (a + (b - a)) → Fin b :=
+  fun i => Fin.cast (by simp [Nat.add_sub_of_le h]) i
+
 theorem finComm_finZeroAddInv_is_finAddZeroInv (n : ℕ) (i : Fin n) :
   finComm 0 n (finZeroAdd_Inv n i) = finAddZero_Inv n i := by
   simp [finComm, finZeroAdd_Inv, finAddZero_Inv, Fin.cast]
@@ -92,6 +117,10 @@ theorem finComm_X_Id_involutive (a b c : ℕ) (i : Fin (a + b + c)) :
 theorem finId_X_Comm_involutive (a b c : ℕ) (i : Fin (a + (b + c))) :
   finId_X_Comm a c b (finId_X_Comm a b c i) = i := by
   simp [finId_X_Comm, Fin.cast]
+
+theorem finId_X_Comm_XX_Id_involutive (a b c d : ℕ) (i : Fin (a + (b + c) + d)) :
+  finId_X_Comm_XX_Id a c b d (finId_X_Comm_XX_Id a b c d i) = i := by
+  simp [finId_X_Comm_XX_Id, Fin.cast]
 
 theorem finComm_X_Id_finAssoc_is_finAssoc_finComm_X_Id_Id
   (a b c d : ℕ) (i : Fin (a + b + c + d)) :
@@ -221,5 +250,17 @@ theorem finZeroAdd_Inv_comp_finZeroAdd_is_id
     (finZeroAdd_Inv n) ∘ (finZeroAdd n) = id := by
   funext i
   simp [finZeroAdd, finZeroAdd_Inv, Function.comp]
+
+@[simp]
+theorem finAddSubLE_Inv_comp (a b : ℕ) (h : a ≤ b) :
+    (finAddSubLE_Inv a b h) ∘ (finAddSubLE a b h) = id := by
+  funext i
+  simp [Function.comp, finAddSubLE, finAddSubLE_Inv]
+
+@[simp]
+theorem finAddSubLE_comp_Inv (a b : ℕ) (h : a ≤ b) :
+    (finAddSubLE a b h) ∘ (finAddSubLE_Inv a b h) = id := by
+  funext i
+  simp [Function.comp, finAddSubLE, finAddSubLE_Inv]
 
 end SumCheck

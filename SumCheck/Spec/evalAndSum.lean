@@ -12,7 +12,7 @@ variable {F : Type u} [Field F]
 
 def funcSubsHeadSingle {F : Type u} [Field F] (n : ℕ) :
     F → func F (1 + n) → func F n :=
-  fun r p => fun xs => p (vecAppendHead (F := F) n r xs)
+  fun r p => fun xs => p (vecAppHeadSingle (F := F) n r xs)
 
 
 -- %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -43,7 +43,7 @@ def funcSubsHead {F : Type u} [Field F] (n : ℕ) :
 -/
 
 def funcSumTailSingle (n : ℕ) : func F (n + 1) → func F n :=
-  fun p xs => (p (vecAppendTail n xs 0) + p (vecAppendTail n xs 1))
+  fun p xs => (p (vecAppTailSingle n xs 0) + p (vecAppTailSingle n xs 1))
 
 -- %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -52,7 +52,7 @@ def funcSumTailSingle (n : ℕ) : func F (n + 1) → func F n :=
 def funcSumTail (n : ℕ) : (k : ℕ) → func F (n + k) → func F n
 | 0, p =>
     -- p: vec (n+0) -> F
-    fun xs => p (vecAddZero_Inv n xs)
+    funcAddZero n p -- fun xs => p (vecAddZero_Inv n xs)
 
 | Nat.succ k, p =>
     -- p : func F (n + (k + 1))
@@ -64,6 +64,17 @@ def funcSumTail (n : ℕ) : (k : ℕ) → func F (n + k) → func F n
         (n := n + k)
         (funcAssoc_Inv n k 1 p)
       )
+
+-- %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-- %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+/-- Hypercube sum `∑_{x∈{0,1}^n} p x`. -/
+def funcSumTotal (n : ℕ) : func F n → F :=
+  fun p =>
+    funcZero
+      (funcSumTail (F := F) (n := 0) (k := n)
+        (funcZeroAdd_Inv (F := F) (n := n) p))
 
 -- %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 -- %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -87,9 +98,25 @@ theorem funcSumTailSingle_funcZeroAdd_X_Id_is_funcZeroAdd_funcSumTailSingle
   unfold funcZeroAdd funcZeroAdd_X_Id
   unfold vecZeroAdd_Inv vecZeroAdd_X_Id_Inv
   unfold finZeroAdd finZeroAdd_X_Id
-  unfold vecAppendTail
+  unfold vecAppTailSingle
   unfold Function.comp
   ring_nf
+  rfl
+
+-- %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-- ∑1 ∘ (ρ × id) = ρ ∘ ∑1
+
+theorem funcSumTailSingle_funcAddZero_X_Id_is_funcAddZero_funcSumTailSingle
+  (a : ℕ) :
+  (funcSumTailSingle (F := F) a) ∘ (funcAddZero_X_Id (F := F) a 1)
+    =
+  (funcAddZero (F := F) a) ∘ (funcSumTailSingle (F := F) (a + 0))
+  := by
+  unfold funcSumTailSingle
+  unfold funcAddZero funcAddZero_X_Id
+  unfold vecAddZero_X_Id_Inv vecAddZero
+  unfold vecAppTailSingle
   rfl
 
 -- %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -106,9 +133,9 @@ theorem sumTailSingle_funcAssoc_X_Id_is_funcAssoc_sumTailSingle (a b c : ℕ) :
     funext p xs
     ring_nf
     have h (r_tail : F) :
-      vecAssoc_X_Id_Inv a b c 1 (vecAppendTail (a + (b + c)) xs r_tail)
+      vecAssoc_X_Id_Inv a b c 1 (vecAppTailSingle (a + (b + c)) xs r_tail)
         =
-      vecAppendTail ((a + b) + c) (vecAssoc_Inv a b c xs) r_tail := by
+      vecAppTailSingle ((a + b) + c) (vecAssoc_Inv a b c xs) r_tail := by
       -- lemma evaluated at xs
       exact (congrArg (fun f => f xs)
       (vecAssoc_X_Id_Inv_vecAppentTail_is_vecAppendTail_vecAssoc_Inv
@@ -156,13 +183,120 @@ theorem funcSumTailSingle_funcComm_X_Id_X_Id_is_funcComm_X_Id_funcSumTailSingle
     simp
     ring_nf
     have h (r_tail : F) :
-      vecComm_X_Id_X_Id b a c 1 (vecAppendTail (b + a + c) xs r_tail)
+      vecComm_X_Id_X_Id b a c 1 (vecAppTailSingle (b + a + c) xs r_tail)
         =
-      vecAppendTail (a + b + c) (vecComm_X_Id b a c xs) r_tail := by
+      vecAppTailSingle (a + b + c) (vecComm_X_Id b a c xs) r_tail
+      := by
       exact (congrArg (fun f => f xs)
       (vecComm_X_Id_X_Id_vecAppendTail_is_vecAppendTail_vecComm_X_Id
         (F := F) b a c r_tail))
     rw [h 0, h 1]
+
+-- %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-- ∑1 ∘ ((id × β) × id) = (id × β) ∘ ∑1
+
+theorem funcSumTailSingle_funcId_X_Comm_XX_Id_is_funcId_X_Comm_funcSumTailSingle
+  (a b c : ℕ) :
+  (funcSumTailSingle (F := F) (a + (c + b))) ∘ (funcId_X_Comm_XX_Id (F := F) a b c 1)
+  =
+  (funcId_X_Comm (F := F) a b c) ∘ (funcSumTailSingle (F := F) (a + (b + c)))
+  := by
+    unfold funcSumTailSingle
+    unfold funcId_X_Comm_XX_Id funcId_X_Comm
+    funext p xs
+    unfold Function.comp
+    simp
+    have h (r_tail : F) :
+      vecId_X_Comm_XX_Id a c b 1 (vecAppTailSingle (a + (c + b)) xs r_tail)
+      =
+      vecAppTailSingle (a + (b + c)) (vecId_X_Comm a c b xs) r_tail
+      := by
+      exact (congrArg (fun f => f xs)
+      (vecId_X_Comm_XX_Id_vecAppTailSingle_is_vecAppTailSingle_vecId_X_Comm
+        (F := F) a b c r_tail ))
+    rw [h 0, h 1]
+
+-- %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-- ∑(k+1) = ∑1 ∘ ∑k ∘ α⁻¹ ∘ (id × β)
+
+theorem funcSumTail_is_funcSumTailSingle_funcSumTail_funcAssoc_Inv_funcId_X_Comm
+  (n k : ℕ) :
+  (funcSumTail (F := F) n (k + 1))
+  =
+  (funcSumTailSingle (F := F) n) ∘
+    (funcSumTail (F := F) (n + 1) k) ∘
+      (funcAssoc_Inv (F := F) n 1 k) ∘
+        (funcId_X_Comm (F := F) n k 1)
+  := by
+  funext p
+  induction k with
+  | zero =>
+    unfold Function.comp
+    unfold funcSumTail
+    conv_rhs =>
+      unfold funcSumTail
+    unfold funcSumTail
+    funext xs
+    simp
+    rfl
+  | succ k hk =>
+    unfold Function.comp at hk
+    unfold Function.comp
+    conv_lhs =>
+      unfold funcSumTail
+    conv_rhs =>
+      unfold funcSumTail
+    rw [hk]
+
+    have h1 (g : func F (n + (k + 1) + 1)) :
+      funcSumTailSingle (F := F) (n + (1 + k)) (funcId_X_Comm_XX_Id (F := F) n k 1 1 g)
+      =
+      funcId_X_Comm (F := F) n k 1 (funcSumTailSingle (F := F) (n + (k + 1)) g)
+      := by
+      exact (congrArg (fun f => f g)
+        (funcSumTailSingle_funcId_X_Comm_XX_Id_is_funcId_X_Comm_funcSumTailSingle n k 1))
+
+    rw [← h1]
+
+    have h2 (g : func F ((n + (1 + k)) + 1)) :
+      funcSumTailSingle (F := F) (n + 1 + k) (funcAssoc_X_Id_Inv (F := F) n 1 k 1 g)
+      =
+      funcAssoc_Inv (F := F) n 1 k (funcSumTailSingle (F := F) (n + (1 + k)) g)
+      := by
+      exact (congrArg (fun f => f g)
+        (sumTailSingle_funcAssoc_X_Id_Inv_is_funcAssoc_Inv_sumTailSingle (F := F) n 1 k))
+    rw [← h2]
+    unfold funcAssoc_Inv funcAssoc_X_Id_Inv
+    unfold funcId_X_Comm funcId_X_Comm_XX_Id
+    unfold vecAssoc vecAssoc_X_Id
+    unfold vecId_X_Comm vecId_X_Comm_XX_Id
+    rfl
+
+
+-- %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+-- Summation over tail of length 1 is a single summation
+
+theorem funcSumTail_1_is_funcSumTailSingle (n : ℕ) :
+  funcSumTail (F := F) n 1 = funcSumTailSingle (F := F) n
+  := by
+  funext p
+  unfold funcSumTail
+  unfold funcSumTail
+  have h (g : func F (n + 0 + 1)) :
+    funcSumTailSingle (F := F) n (funcAddZero_X_Id (F := F) n 1 g)
+    =
+    funcAddZero (F := F) n (funcSumTailSingle (F := F) (n + 0) g)
+    := by
+      simpa [Function.comp] using
+        congrArg
+          (fun (f : func F (n + 0 + 1) → func F n) => f g)
+          (funcSumTailSingle_funcAddZero_X_Id_is_funcAddZero_funcSumTailSingle (F := F) n)
+  rw [← h]
+  rfl
 
 -- %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -203,9 +337,9 @@ theorem funcSubsHeadSingle_funcId_X_Id_X_Assoc_is_funcId_X_Assoc_funcSubsHeadSin
   -- directly apply the composition lemma at `xs`
   have hv :
       vecId_X_Id_X_Assoc_Inv (F := F) 1 a b c d
-        (vecAppendHead (F := F) (n := a + (b + (c + d))) r_head xs)
+        (vecAppHeadSingle (F := F) (n := a + (b + (c + d))) r_head xs)
       =
-      vecAppendHead (F := F) (n := a + (b + c + d)) r_head
+      vecAppHeadSingle (F := F) (n := a + (b + c + d)) r_head
         (vecId_X_Assoc_Inv (F := F) a b c d xs) := by
     -- “lemma evaluated at xs”
     exact (congrArg (fun f => f xs)
@@ -347,7 +481,7 @@ theorem funcSubsHead_funcId_X_Assoc_Inv_is_funcAssoc_Inv_funcSubsHead
 -- ∑1 ∘ ev₁ ∘ α = ev₁ ∘ ∑1
 
 theorem funcSumTailSingle_funcSubsHeadSingle_funcAssoc_is_funcSubsHeadSingle_funcSumTailSingle
-  {F : Type} [Field F]
+  {F : Type u} [Field F]
   (n : ℕ) (r_head : F) :
   funcSumTailSingle (F := F) (n := n)
       ∘ (fun p : func F (1 + n + 1) =>
@@ -362,14 +496,14 @@ theorem funcSumTailSingle_funcSubsHeadSingle_funcAssoc_is_funcSubsHeadSingle_fun
 
   -- single reusable rewrite for any tail value
   have hv (r_tail : F) :
-      vecAppendTail (1 + n) (vecAppendHead n r_head v) r_tail
+      vecAppTailSingle (1 + n) (vecAppHeadSingle n r_head v) r_tail
         =
       vecAssoc_Inv 1 n 1
-        (vecAppendHead (n + 1) r_head (vecAppendTail n v r_tail)) := by
+        (vecAppHeadSingle (n + 1) r_head (vecAppTailSingle n v r_tail)) := by
     have h :=
       congrArg (fun f => f v)
         (vecAppendTail_vecAppendHead_is_vecAssoc_Inv_vecAppendHead_vecAppendTail
-          (F := F) (n := n) (r_head := r_head) (r_tail := r_tail))
+          (n := n) (r_head := r_head) (r_tail := r_tail))
     simpa [Function.comp] using h
 
   -- finish by specializing hv at 0 and 1 directly in simp
@@ -382,7 +516,7 @@ theorem funcSumTailSingle_funcSubsHeadSingle_funcAssoc_is_funcSubsHeadSingle_fun
 
 -- m, n, 1 case
 theorem funcSubsHead_funcSumTailSingle_is_funcSumTailSingle_funcSubsHead_funcAssoc
-  {F : Type} [Field F]
+  {F : Type u} [Field F]
   (m n : ℕ) (r : vec F m) :
   (funcSubsHead n m r) ∘ (funcSumTailSingle (m + n))
   =
@@ -398,9 +532,9 @@ theorem funcSubsHead_funcSumTailSingle_is_funcSumTailSingle_funcSubsHead_funcAss
       -- funext xs
       ring_nf
       have h0 (a : F) (xs : vec F n) :
-        vecAssoc_Inv 0 n 1 (vecZeroAdd_Inv (n + 1) (vecAppendTail n xs a))
+        vecAssoc_Inv 0 n 1 (vecZeroAdd_Inv (n + 1) (vecAppTailSingle n xs a))
           =
-        vecAppendTail (0 + n) (vecZeroAdd_Inv n xs) a := by
+        vecAppTailSingle (0 + n) (vecZeroAdd_Inv n xs) a := by
         -- evaluate the composition equality at `xs`
         simpa [Function.comp] using
           (congrArg (fun f => f xs)
@@ -492,7 +626,7 @@ theorem funcSubsHead_funcSumTailSingle_is_funcSumTailSingle_funcSubsHead_funcAss
 -- ∑k ∘ ev_m α = ev_m ∘ ∑k
 
 theorem sumTailLong_substHeadLong_comm
-  {F : Type} [Field F]
+  {F : Type u} [Field F]
   (m n k : ℕ) (r : vec F m) :
   funcSumTail (F := F) (n := n) (k := k)
     ∘

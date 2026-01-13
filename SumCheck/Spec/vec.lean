@@ -12,6 +12,15 @@ variable {F : Type u} [Field F]
 def vec (F : Type u) [Field F] (n : ℕ) : Type u :=
   Fin n → F
 
+/-- Empty vector. -/
+def vecZero : vec F 0 := fun i => Fin.elim0 i
+
+def vecOne : vec F 1 → F :=
+  fun v => v ⟨0, by simp⟩
+
+def vecOne_Inv : F → vec F 1 :=
+  fun x => fun _i => x
+
 def vecAddZero (n : ℕ) : vec F (n + 0) → vec F n :=
   fun xs i => xs (finAddZero_Inv n i)
 
@@ -74,18 +83,49 @@ def vecId_X_Comm (a b c : ℕ) : vec F (a + (b + c)) → vec F (a + (c + b)) :=
 def vecComm_X_Id_X_Id (a b c d : ℕ) : vec F (a + b + c + d) → vec F (b + a + c + d) :=
   fun v i => v (finComm_X_Id_X_Id b a c d i)
 
+def vecId_X_Comm_XX_Id (a b c d : ℕ) :
+    vec F (a + (b + c) + d) → vec F (a + (c + b) + d) :=
+  fun v i => v (finId_X_Comm_XX_Id a c b d i)
+
 def vecRightComm (a b c : ℕ) : vec F (a + b + c) → vec F (a + c + b) :=
   fun v i => v (finRightComm a c b i)
 
 def vecLeftComm (a b c : ℕ) : vec F (a + (b + c)) → vec F (b + (a + c)) :=
   fun v i => v (finLeftComm b a c i)
 
+/-- `vec F b → vec F (a + (b-a))` via reindexing. -/
+def vecAddSubLE (a b : ℕ) (h : a ≤ b) : vec F b → vec F (a + (b - a)) :=
+  fun v => fun i => v (finAddSubLE_Inv a b h i)
+
+/-- `vec F (a + (b-a)) → vec F b` via reindexing. -/
+def vecAddSubLE_Inv (a b : ℕ) (h : a ≤ b) : vec F (a + (b - a)) → vec F b :=
+  fun v => fun i => v (finAddSubLE a b h i)
+
+@[simp]
+theorem vecOne_comp_vecOneInv :
+  (vecOne (F := F)) ∘ (vecOne_Inv (F := F)) = id := by
+  funext x
+  rfl
+
+@[simp]
+theorem vecOneInv_comp_vecOne :
+  (vecOne_Inv (F := F)) ∘ (vecOne (F := F)) = id := by
+  funext v
+  -- both sides are the same value, since vecOneInv produces a constant function
+  funext i
+  simp [vecOne, vecOne_Inv, Function.comp]
+  have hi : i = (0 : Fin 1) := by
+    simpa using (Fin.eq_zero i)
+  -- now rewrite
+  simp [hi]
+
+@[simp]
 theorem vecComm_involutive (a b : ℕ) (v : vec F (a + b)) :
   vecComm b a (vecComm a b v) = v := by
   unfold vecComm
   simp [finComm_involutive]
 
-
+@[simp]
 theorem vecComm_vecZeroAddInv_is_vecAddZeroInv (n : ℕ) (v : vec F n) :
   vecComm 0 n (vecZeroAdd_Inv n v) = vecAddZero_Inv n v := by
   funext i
@@ -94,16 +134,25 @@ theorem vecComm_vecZeroAddInv_is_vecAddZeroInv (n : ℕ) (v : vec F n) :
   simp [Fin.cast]
   rfl
 
+@[simp]
 theorem vecComm_X_Id_involutive (a b c : ℕ) (v : vec F (a + b + c)) :
   vecComm_X_Id b a c (vecComm_X_Id a b c v) = v := by
   unfold vecComm_X_Id
   simp [finComm_X_Id]
 
-theorem vecId_X_Comm_involutive(a b c : ℕ) (v : vec F (a + (b + c))) :
+@[simp]
+theorem vecId_X_Comm_involutive (a b c : ℕ) (v : vec F (a + (b + c))) :
   vecId_X_Comm a c b (vecId_X_Comm a b c v  ) = v := by
   unfold vecId_X_Comm
   simp [finId_X_Comm]
 
+@[simp]
+theorem vecId_X_Comm_XX_Id_involutive (a b c d : ℕ) (v : vec F (a + (b + c) + d)) :
+  vecId_X_Comm_XX_Id a c b d (vecId_X_Comm_XX_Id a b c d v) = v := by
+  unfold vecId_X_Comm_XX_Id
+  simp [finId_X_Comm_XX_Id]
+
+@[simp]
 theorem vecComm_X_Id_finAssocInv_is_finAssocInv_finComm_X_Id_Id
   (a b c d : ℕ) (v : vec F ((a + b) + (c + d))) :
   vecAssoc_Inv (b + a) c d (vecComm_X_Id a b (c + d) v)
@@ -113,6 +162,7 @@ theorem vecComm_X_Id_finAssocInv_is_finAssocInv_finComm_X_Id_Id
   funext i
   unfold vecAssoc_Inv vecComm_X_Id vecComm_X_Id_X_Id
   simp [finComm_X_Id_finAssoc_is_finAssoc_finComm_X_Id_Id]
+
 
 theorem vecPentagonIdentity (a b c d : ℕ) (v : vec F (a + (b + (c + d)))) :
   vecAssoc_X_Id_Inv a b c d (vecAssoc_Inv a (b + c) d (vecId_X_Assoc_Inv a b c d v))
@@ -274,9 +324,20 @@ theorem vecAddZero_X_Id_Inv_comp_vecAddZero_X_Id_is_id
   unfold vecAddZero_X_Id vecAddZero_X_Id_Inv
   rfl
 
+@[simp]
+theorem vecAddSubLE_Inv_comp (a b : ℕ) (h : a ≤ b) :
+  (vecAddSubLE_Inv (F := F) a b h) ∘ (vecAddSubLE (F := F) a b h) = id := by
+  funext v
+  funext i
+  simp [Function.comp, vecAddSubLE, vecAddSubLE_Inv]
+  rfl
 
-
-
-
+@[simp]
+theorem vecAddSubLE_comp_Inv (a b : ℕ) (h : a ≤ b) :
+  (vecAddSubLE (F := F) a b h) ∘ (vecAddSubLE_Inv (F := F) a b h) = id := by
+  funext v
+  funext i
+  simp [Function.comp, vecAddSubLE, vecAddSubLE_Inv]
+  rfl
 
 end SumCheck

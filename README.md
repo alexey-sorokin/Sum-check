@@ -1,1 +1,1 @@
-# Project021225
+# NEO Lean 4 verification

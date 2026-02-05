@@ -1,12 +1,15 @@
-name = "Sumcheck"
+name = "NEO"
 version = "0.1.0"
-defaultTargets = ["sumcheck"]
+defaultTargets = ["SumCheck", "Lookup"]
 
 [[lean_lib]]
-name = "Sumcheck"
+name = "SumCheck"
+
+[[lean_lib]]
+name = "Lookup"
 
 [[lean_exe]]
-name = "sumcheck"
+name = "neo"
 root = "Main"
 
 [[require]]
